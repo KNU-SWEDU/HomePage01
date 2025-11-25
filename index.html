@@ -3,88 +3,251 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LM Studio Custom Chat</title>
+    <title>LM Studio Web Client</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .chat-container { width: 100%; max-width: 800px; background: white; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; height: 90vh; }
-        .header { padding: 20px; background-color: #4a4e69; color: white; border-top-left-radius: 10px; border-top-right-radius: 10px; text-align: center; }
-        .header h2 { margin: 0; font-size: 1.2rem; }
-        .status { font-size: 0.8rem; color: #ccc; margin-top: 5px; }
-        #chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .message { max-width: 80%; padding: 12px 16px; border-radius: 15px; line-height: 1.5; word-wrap: break-word; }
-        .user-msg { align-self: flex-end; background-color: #9a8c98; color: white; border-bottom-right-radius: 2px; }
-        .ai-msg { align-self: flex-start; background-color: #f2e9e4; color: #22223b; border-bottom-left-radius: 2px; }
-        .input-area { padding: 20px; border-top: 1px solid #eee; display: flex; gap: 10px; background-color: white; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
-        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 25px; outline: none; font-size: 1rem; }
-        input:focus { border-color: #4a4e69; }
-        button { padding: 10px 25px; background-color: #22223b; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        button:hover { background-color: #4a4e69; }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        :root {
+            --bg-color: #1e1e1e;
+            --sidebar-bg: #252526;
+            --chat-bg: #1e1e1e;
+            --input-bg: #3c3c3c;
+            --text-color: #ffffff;
+            --accent-color: #007acc;
+            --user-msg-bg: #005a9e;
+            --ai-msg-bg: #333333;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 사이드바 (설정 메뉴) */
+        .sidebar {
+            width: 300px;
+            background-color: var(--sidebar-bg);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #333;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+        }
+
+        .sidebar h2 { margin-top: 0; font-size: 1.2rem; }
+        
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #ccc; }
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            background-color: var(--input-bg);
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button#connect-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button#connect-btn:hover { background-color: #0062a3; }
+
+        .status {
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #aaa;
+            text-align: center;
+        }
+        .status.connected { color: #4caf50; }
+        .status.error { color: #f44336; }
+
+        /* 메인 채팅 영역 */
+        .main-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #chat-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 10px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--user-msg-bg);
+            border-bottom-right-radius: 2px;
+        }
+
+        .message.ai {
+            align-self: flex-start;
+            background-color: var(--ai-msg-bg);
+            border-bottom-left-radius: 2px;
+        }
+
+        .loading { font-style: italic; color: #888; font-size: 0.8rem; }
+
+        /* 입력 영역 */
+        .input-area {
+            padding: 20px;
+            background-color: var(--sidebar-bg);
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #333;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background-color: var(--input-bg);
+            color: white;
+        }
+
+        #send-btn {
+            padding: 0 20px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #send-btn:disabled { background-color: #555; cursor: not-allowed; }
+
     </style>
 </head>
 <body>
 
-    <div class="chat-container">
-        <div class="header">
-            <h2>LM Studio Chat Client</h2>
-            <div class="status" id="status-text">연결 대기 중... (http://155.230.34.187:2345)</div>
+    <!-- 왼쪽 사이드바: 접속 설정 -->
+    <div class="sidebar">
+        <h2>원격 접속 설정</h2>
+        <div class="input-group">
+            <label for="api-url">서버 주소 (URL)</label>
+            <!-- 로컬인 경우 localhost, 원격인 경우 IP 입력 -->
+            <input type="text" id="api-url" value="http://localhost:1234/v1" placeholder="예: http://192.168.0.5:1234/v1">
         </div>
         
-        <div id="chat-box">
-            <!-- 채팅 메시지가 여기에 추가됩니다 -->
+        <div class="input-group">
+            <label for="system-prompt">시스템 프롬프트 (선택)</label>
+            <input type="text" id="system-prompt" value="당신은 도움이 되는 AI 어시스턴트입니다." placeholder="AI의 역할을 지정하세요">
+        </div>
+
+        <button id="connect-btn">연결</button>
+        <div id="connection-status" class="status">연결 대기 중...</div>
+    </div>
+
+    <!-- 오른쪽 메인: 채팅창 -->
+    <div class="main-chat">
+        <div id="chat-container">
+            <div class="message ai">안녕하세요! LM Studio에 연결하신 후 대화를 시작해보세요.</div>
         </div>
 
         <div class="input-area">
-            <input type="text" id="user-input" placeholder="메시지를 입력하삼..." onkeypress="if(event.key==='Enter') sendMessage()">
-            <button onclick="sendMessage()" id="send-btn">전송</button>
+            <input type="text" id="user-input" placeholder="메시지를 입력하세요..." onkeypress="if(event.key === 'Enter') sendMessage()">
+            <button id="send-btn" onclick="sendMessage()">전송</button>
         </div>
     </div>
 
     <script>
-        // ================= 설정 정보 =================
-        const CONFIG = {
-            BASE_URL: "http://155.230.34.187:2345/v1", // 제공해주신 URL + 엔드포인트
-            API_KEY: "lm-studo",  // 제공해주신 키
-            MODEL: "local_model"  // 제공해주신 모델명
-        };
-        // ============================================
+        let isConnected = false;
+        let conversationHistory = [];
 
-        // 대화 문맥 유지를 위한 배열
-        let conversationHistory = [
-            { role: "system", content: "당신은 유용한 AI 어시스턴트입니다." }
-        ];
+        const connectBtn = document.getElementById('connect-btn');
+        const statusDisplay = document.getElementById('connection-status');
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
 
-        const statusText = document.getElementById('status-text');
+        // 1. 연결 버튼 기능
+        connectBtn.addEventListener('click', async () => {
+            const apiUrl = document.getElementById('api-url').value;
+            statusDisplay.textContent = "연결 시도 중...";
+            statusDisplay.className = "status";
 
-        async function sendMessage() {
-            const inputField = document.getElementById('user-input');
-            const sendBtn = document.getElementById('send-btn');
-            const userText = inputField.value.trim();
-
-            if (!userText) return;
-
-            // 1. 화면에 사용자 메시지 표시
-            addMessageToUI(userText, 'user-msg');
-            inputField.value = "";
-            
-            // 입력창 잠금
-            inputField.disabled = true;
-            sendBtn.disabled = true;
-            statusText.innerText = "AI가 답변을 생성 중입니다...";
-
-            // 2. 대화 기록에 사용자 질문 추가
-            conversationHistory.push({ role: "user", content: userText });
-
-            // 3. LM Studio로 요청 전송
             try {
-                const response = await fetch(CONFIG.BASE_URL, {
+                // 모델 리스트를 가져오는 가벼운 요청으로 연결 테스트
+                const response = await fetch(`${apiUrl}/models`);
+                
+                if (response.ok) {
+                    isConnected = true;
+                    statusDisplay.textContent = "연결 성공!";
+                    statusDisplay.className = "status connected";
+                    
+                    // 시스템 프롬프트 초기화
+                    const systemPrompt = document.getElementById('system-prompt').value;
+                    conversationHistory = [
+                        { role: "system", content: systemPrompt }
+                    ];
+                } else {
+                    throw new Error("서버 응답 오류");
+                }
+            } catch (error) {
+                console.error(error);
+                isConnected = false;
+                statusDisplay.textContent = "연결 실패: LM Studio의 CORS 설정을 확인하세요.";
+                statusDisplay.className = "status error";
+            }
+        });
+
+        // 2. 메시지 전송 기능
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+            if (!isConnected) {
+                alert("먼저 '연결' 버튼을 눌러 서버와 연결해주세요.");
+                return;
+            }
+
+            // 사용자 메시지 화면 표시
+            appendMessage("user", text);
+            userInput.value = '';
+            sendBtn.disabled = true;
+
+            // 대화 기록에 추가
+            conversationHistory.push({ role: "user", content: text });
+
+            // 로딩 표시
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message ai loading';
+            loadingDiv.textContent = 'AI가 생각 중입니다...';
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            const apiUrl = document.getElementById('api-url').value;
+
+            try {
+                const response = await fetch(`${apiUrl}/chat/completions`, {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${CONFIG.API_KEY}`
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        model: CONFIG.MODEL,
                         messages: conversationHistory,
                         temperature: 0.7,
                         max_tokens: -1,
@@ -92,38 +255,34 @@
                     })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`서버 응답 오류: ${response.status}`);
+                const data = await response.json();
+                
+                // 로딩 제거
+                chatContainer.removeChild(loadingDiv);
+
+                if (data.choices && data.choices.length > 0) {
+                    const aiText = data.choices[0].message.content;
+                    appendMessage("ai", aiText);
+                    conversationHistory.push({ role: "assistant", content: aiText });
+                } else {
+                    appendMessage("ai", "오류: 응답을 받을 수 없습니다.");
                 }
 
-                const data = await response.json();
-                const aiResponse = data.choices[0].message.content;
-
-                // 4. AI 응답 처리
-                addMessageToUI(aiResponse, 'ai-msg');
-                conversationHistory.push({ role: "assistant", content: aiResponse });
-                statusText.innerText = "대기 중";
-
             } catch (error) {
-                console.error("Error:", error);
-                addMessageToUI(`[연결 실패] LM Studio 설정을 확인해주세요.\n에러 내용: ${error.message}`, 'ai-msg');
-                statusText.innerText = "연결 오류 발생";
+                chatContainer.removeChild(loadingDiv);
+                appendMessage("ai", `통신 오류: ${error.message}`);
             } finally {
-                // 입력창 잠금 해제
-                inputField.disabled = false;
                 sendBtn.disabled = false;
-                inputField.focus();
             }
         }
 
-        function addMessageToUI(text, className) {
-            const chatBox = document.getElementById('chat-box');
+        // 화면에 메시지 추가하는 헬퍼 함수
+        function appendMessage(role, text) {
             const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${className}`;
-            // 줄바꿈 처리
-            msgDiv.innerHTML = text.replace(/\n/g, "<br>");
-            chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            msgDiv.className = `message ${role}`;
+            msgDiv.textContent = text;
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
     </script>
 </body>
