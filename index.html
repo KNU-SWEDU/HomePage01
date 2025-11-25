@@ -3,91 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>나만의 로컬 AI 채팅 ver 0.1</title>
+    <title>LM Studio Custom Chat</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        #chat-box { border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
-        .message { margin: 10px 0; padding: 10px; border-radius: 5px; }
-        .user { background-color: #e1ffc7; text-align: right; }
-        .ai { background-color: #f1f0f0; }
-        .input-area { display: flex; gap: 10px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        button:disabled { background-color: #ccc; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .chat-container { width: 100%; max-width: 800px; background: white; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; height: 90vh; }
+        .header { padding: 20px; background-color: #4a4e69; color: white; border-top-left-radius: 10px; border-top-right-radius: 10px; text-align: center; }
+        .header h2 { margin: 0; font-size: 1.2rem; }
+        .status { font-size: 0.8rem; color: #ccc; margin-top: 5px; }
+        #chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .message { max-width: 80%; padding: 12px 16px; border-radius: 15px; line-height: 1.5; word-wrap: break-word; }
+        .user-msg { align-self: flex-end; background-color: #9a8c98; color: white; border-bottom-right-radius: 2px; }
+        .ai-msg { align-self: flex-start; background-color: #f2e9e4; color: #22223b; border-bottom-left-radius: 2px; }
+        .input-area { padding: 20px; border-top: 1px solid #eee; display: flex; gap: 10px; background-color: white; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 25px; outline: none; font-size: 1rem; }
+        input:focus { border-color: #4a4e69; }
+        button { padding: 10px 25px; background-color: #22223b; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background-color: #4a4e69; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-    <h1>🤖 LM Studio Web Client ver0.1</h1>
-    
-    <div id="chat-box"></div>
+    <div class="chat-container">
+        <div class="header">
+            <h2>LM Studio Chat Client</h2>
+            <div class="status" id="status-text">연결 대기 중... (http://155.230.34.187:1324)</div>
+        </div>
+        
+        <div id="chat-box">
+            <!-- 채팅 메시지가 여기에 추가됩니다 -->
+        </div>
 
-    <div class="input-area">
-        <input type="text" id="user-input" placeholder="메시지를 입력하세요..." onkeypress="if(event.key==='Enter') sendMessage()">
-        <button onclick="sendMessage()" id="send-btn">전송</button>
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="메시지를 입력하세요..." onkeypress="if(event.key==='Enter') sendMessage()">
+            <button onclick="sendMessage()" id="send-btn">전송</button>
+        </div>
     </div>
 
     <script>
-        // LM Studio 기본 주소1
-        const API_URL = "http://155.230.34.187:2341/v1/chat/completions";
+        // ================= 설정 정보 =================
+        const CONFIG = {
+            BASE_URL: "http://155.230.34.187:1324/v1/chat/completions", // 제공해주신 URL + 엔드포인트
+            API_KEY: "lm-studo",  // 제공해주신 키
+            MODEL: "local_model"  // 제공해주신 모델명
+        };
+        // ============================================
+
+        // 대화 문맥 유지를 위한 배열
+        let conversationHistory = [
+            { role: "system", content: "당신은 유용한 AI 어시스턴트입니다." }
+        ];
+
+        const statusText = document.getElementById('status-text');
 
         async function sendMessage() {
             const inputField = document.getElementById('user-input');
             const sendBtn = document.getElementById('send-btn');
-            const chatBox = document.getElementById('chat-box');
-            const userText = inputField.value;
+            const userText = inputField.value.trim();
 
             if (!userText) return;
 
-            // 1. 사용자 메시지 화면에 표시
-            appendMessage("나", userText, "user");
+            // 1. 화면에 사용자 메시지 표시
+            addMessageToUI(userText, 'user-msg');
             inputField.value = "";
+            
+            // 입력창 잠금
             inputField.disabled = true;
             sendBtn.disabled = true;
+            statusText.innerText = "AI가 답변을 생성 중입니다...";
 
-            // 2. LM Studio에 요청 보낼 데이터 준비
-            const requestBody = {
-                model: "local-model", // LM Studio는 현재 로드된 모델을 사용하므로 이름은 크게 상관없음
-                messages: [
-                    { role: "system", content: "당신은 도움이 되는 AI 어시스턴트입니다." },
-                    { role: "user", content: userText }
-                ],
-                temperature: 0.7
-            };
+            // 2. 대화 기록에 사용자 질문 추가
+            conversationHistory.push({ role: "user", content: userText });
 
+            // 3. LM Studio로 요청 전송
             try {
-                // 3. API 요청 전송
-                const response = await fetch(API_URL, {
+                const response = await fetch(CONFIG.BASE_URL, {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${CONFIG.API_KEY}`
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify({
+                        model: CONFIG.MODEL,
+                        messages: conversationHistory,
+                        temperature: 0.7,
+                        max_tokens: -1,
+                        stream: false 
+                    })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`서버 응답 오류: ${response.status}`);
+                }
+
                 const data = await response.json();
-                
-                // 4. AI 응답 화면에 표시
-                const aiText = data.choices[0].message.content;
-                appendMessage("AI", aiText, "ai");
+                const aiResponse = data.choices[0].message.content;
+
+                // 4. AI 응답 처리
+                addMessageToUI(aiResponse, 'ai-msg');
+                conversationHistory.push({ role: "assistant", content: aiResponse });
+                statusText.innerText = "대기 중";
 
             } catch (error) {
                 console.error("Error:", error);
-                appendMessage("시스템", "LM Studio 연결 실패! 서버가 켜져 있는지 확인하세요.", "ai");
+                addMessageToUI(`[연결 실패] LM Studio 설정을 확인해주세요.\n에러 내용: ${error.message}`, 'ai-msg');
+                statusText.innerText = "연결 오류 발생";
             } finally {
+                // 입력창 잠금 해제
                 inputField.disabled = false;
                 sendBtn.disabled = false;
                 inputField.focus();
             }
         }
 
-        function appendMessage(sender, text, className) {
+        function addMessageToUI(text, className) {
             const chatBox = document.getElementById('chat-box');
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${className}`;
-            msgDiv.innerHTML = `<strong>${sender}:</strong> ${text.replace(/\n/g, "<br>")}`;
+            // 줄바꿈 처리
+            msgDiv.innerHTML = text.replace(/\n/g, "<br>");
             chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight; // 스크롤 아래로
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
     </script>
 </body>
